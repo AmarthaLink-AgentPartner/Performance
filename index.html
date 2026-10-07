@@ -47,28 +47,31 @@
     /* Custom PWA Install Banner Styling dengan Safe Area Padding */
     #pwaInstallBanner {
       position: fixed;
-      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
       left: 50%;
-      transform: translateX(-50%) translateY(150%);
+      transform: translateX(-50%) translateY(200%);
       z-index: 9999;
       width: calc(100% - 32px);
       max-width: 420px;
-      background: rgba(17, 22, 37, 0.94);
+      background: rgba(17, 22, 37, 0.95);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 20px;
       padding: 12px 16px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-      display: flex;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      display: none; /* Default hidden */
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       color: #ffffff;
-      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+      opacity: 0;
     }
     #pwaInstallBanner.show {
+      display: flex;
       transform: translateX(-50%) translateY(0);
+      opacity: 1;
     }
     .pwa-icon {
       width: 40px;
@@ -169,15 +172,18 @@
       });
     }
 
-    // PWA Custom Install Prompt Logic
+    // Deteksi apakah app dibuka via Home Screen (Standalone PWA Mode)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+                      || window.navigator.standalone 
+                      || document.referrer.includes('android-app://');
+
     let deferredPrompt = null;
     const banner = document.getElementById('pwaInstallBanner');
     const btnInstall = document.getElementById('btnPwaInstall');
     const descText = document.getElementById('pwaDescText');
-
     const isDismissed = localStorage.getItem('pwa_banner_dismissed');
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
+    // HANYA jalankan logika banner jika BUKAN mode Standalone
     if (!isStandalone && !isDismissed) {
       // Event handler untuk Android Chrome & Browser Modern
       window.addEventListener('beforeinstallprompt', (e) => {
@@ -186,7 +192,7 @@
         showPwaBanner();
       });
 
-      // Deteksi iOS Safari
+      // Deteksi iOS Safari (Biasa, bukan PWA)
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
       const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/.test(navigator.userAgent);
 
@@ -201,11 +207,16 @@
     }
 
     function showPwaBanner() {
-      if (banner) banner.classList.add('show');
+      if (banner && !isStandalone) {
+        banner.classList.add('show');
+      }
     }
 
     function dismissPwaBanner() {
-      if (banner) banner.classList.remove('show');
+      if (banner) {
+        banner.classList.remove('show');
+        banner.style.display = 'none';
+      }
       localStorage.setItem('pwa_banner_dismissed', 'true');
     }
 
@@ -226,3 +237,4 @@
   </script>
 </body>
 </html>
+```
