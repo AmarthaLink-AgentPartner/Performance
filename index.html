@@ -1,10 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1117">
+  <meta name="description" content="Amarthalink Agent Partner Performance Dashboard">
+  
+  <!-- Apple iOS Mobile Web App Capable -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Amarthalink">
+
+  <!-- PWA Manifest & Icons -->
+  <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="a_icon.png">
-  <title>Amarthalink Sales Acquisition Dashboard</title> 
+  <link rel="apple-touch-icon" href="a_icon.png">
+
+  <title>Amarthalink Agent Partner Dashboard</title>
 
   <style>
     * {
@@ -18,6 +30,7 @@
       height: 100dvh; /* Dynamic Viewport Height khusus HP */
       overflow: hidden;
       background-color: #0d1117;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     iframe {
       border: none;
@@ -31,11 +44,186 @@
       height: 100dvh;
       display: block;
     }
+
+    /* Custom PWA Install Banner Styling */
+    #pwaInstallBanner {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(150%);
+      z-index: 9999;
+      width: calc(100% - 32px);
+      max-width: 420px;
+      background: rgba(17, 22, 37, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 12px 16px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: #ffffff;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #pwaInstallBanner.show {
+      transform: translateX(-50%) translateY(0);
+    }
+    .pwa-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 18px;
+      color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+    }
+    .pwa-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .pwa-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin: 0;
+      line-height: 1.2;
+      color: #ffffff;
+    }
+    .pwa-desc {
+      font-size: 11px;
+      color: #94a3b8;
+      margin: 2px 0 0 0;
+      line-height: 1.2;
+    }
+    .pwa-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .btn-pwa-install {
+      background: #4f46e5;
+      color: #ffffff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-pwa-install:hover {
+      background: #4338ca;
+    }
+    .btn-pwa-close {
+      background: rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
 
   <iframe src="https://script.google.com/a/macros/amartha.com/s/AKfycbwyQrG4Z3dbV0LDOB01NTih8kiPYrSHyJr2H3Y9rYpJn7d9HpPBrlONi0iiyy9IlxPo/exec"></iframe>
 
+  <!-- PWA Custom Install Prompt Banner -->
+  <div id="pwaInstallBanner">
+    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+      <div class="pwa-icon">A</div>
+      <div class="pwa-content">
+        <h4 class="pwa-title">Install App Amarthalink</h4>
+        <p id="pwaDescText" class="pwa-desc">Akses cepat & layar penuh di HP</p>
+      </div>
+    </div>
+    <div class="pwa-actions">
+      <button id="btnPwaInstall" class="btn-pwa-install">Install</button>
+      <button id="btnPwaClose" class="btn-pwa-close" onclick="dismissPwaBanner()">✕</button>
+    </div>
+  </div>
+
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js')
+          .then(function(reg) {
+            console.log('PWA Service Worker registered successfully:', reg.scope);
+          })
+          .catch(function(err) {
+            console.error('Service Worker registration failed:', err);
+          });
+      });
+    }
+
+    // PWA Custom Install Prompt Logic
+    let deferredPrompt = null;
+    const banner = document.getElementById('pwaInstallBanner');
+    const btnInstall = document.getElementById('btnPwaInstall');
+    const descText = document.getElementById('pwaDescText');
+
+    const isDismissed = localStorage.getItem('pwa_banner_dismissed');
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    if (!isStandalone && !isDismissed) {
+      // Event handler untuk Android Chrome & Browser Modern
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        showPwaBanner();
+      });
+
+      // Deteksi iOS Safari
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/.test(navigator.userAgent);
+
+      if (isIOS && isSafari) {
+        descText.innerText = 'Ketuk Share lalu "Add to Home Screen"';
+        btnInstall.innerText = 'Panduan';
+        btnInstall.onclick = () => {
+          alert('Untuk menginstal di iOS Safari:\n1. Ketuk ikon "Share" (Bagikan) di bawah browser.\n2. Pilih "Add to Home Screen" (Tambah ke Utama).');
+        };
+        setTimeout(showPwaBanner, 2000);
+      }
+    }
+
+    function showPwaBanner() {
+      if (banner) banner.classList.add('show');
+    }
+
+    function dismissPwaBanner() {
+      if (banner) banner.classList.remove('show');
+      localStorage.setItem('pwa_banner_dismissed', 'true');
+    }
+
+    btnInstall.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('User choice outcome:', outcome);
+        deferredPrompt = null;
+        dismissPwaBanner();
+      }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      dismissPwaBanner();
+      console.log('PWA was installed successfully');
+    });
+  </script>
 </body>
 </html>
